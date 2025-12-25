@@ -1,60 +1,61 @@
 import streamlit as st
 import requests
 import pandas as pd
-import time
 from datetime import datetime
+import time
 
-st.set_page_config(page_title="고립사 예방 실시간 모니터링")
+st.set_page_config(page_title="고립사 예방 실시간 모니터링", layout="centered")
 
-SERVER_URL = "https://isolation-watch.onrender.com/data"
-HISTORY_URL = "https://isolation-watch.onrender.com/history"
+# --- 서버 URL ---
+SERVER_URL = "https://isolation-watch.onrender.com/data"     # 최신 상태
+HISTORY_URL = "https://isolation-watch.onrender.com/history"  # 기록
 
-# --- 설명글 ---
+# --- 상단 설명글 ---
 st.markdown("""
 # 👨‍🦳 고립사 예방 실시간 모니터링
-
-이 시스템은 아두이노 센서로 움직임을 감지하고, 
-무활동 시 웹사이트에서 경고 상태를 표시합니다.
-
-작동 원리:
-- 아두이노가 실시간으로 서버에 상태(`ACTIVE`/`INACTIVE`)와 무활동 시간을 전송
-- 서버는 최신 상태를 저장하고 기록으로 남김
-- Streamlit이 서버를 2초마다 호출하여 화면 갱신
+- 아두이노 센서로 움직임 감지
+- 무활동 시 경고 표시
+- 실시간 기록 및 선 그래프
+- 화면은 2초마다 갱신
 """)
 
-placeholder = st.empty()
+# --- 화면 갱신용 placeholder ---
+status_placeholder = st.empty()
 chart_placeholder = st.empty()
 
-# --- 기록용 DataFrame ---
-history_df = pd.DataFrame(columns=["Time", "Status", "InactiveTime"])
+# --- 자동 새로고침 (2초) ---
+st_autorefresh = st.experimental_rerun
 
-while True:
-    try:
-        res = requests.get(SERVER_URL, timeout=5)
-        data = res.json()
+# --- 데이터 가져오기 ---
+try:
+    # 현재 상태
+    res = requests.get(SERVER_URL, timeout=5)
+    data = res.json()
 
-        # --- 최신 상태 표시 ---
-        with placeholder.container():
-            st.subheader("현재 상태")
-            if data["status"] == "ACTIVE":
-                st.success("🟢 정상 상태")
-            elif data["status"] == "INACTIVE":
-                st.error("🚨 무활동 감지")
-            else:
-                st.warning("대기 중")
-            st.metric("무활동 시간(초)", data["time"])
-            st.caption(f"마지막 갱신: {data['updated']}")
+    with status_placeholder.container():
+        st.subheader("현재 상태")
+        if data["status"] == "ACTIVE":
+            st.success("🟢 정상 상태")
+        elif data["status"] == "INACTIVE":
+            st.error("🚨 무활동 감지")
+        else:
+            st.warning("⏳ 대기 중")
 
-        # --- 기록 가져오기 ---
-        hist_res = requests.get(HISTORY_URL, timeout=5)
-        hist_json = hist_res.json()
-        if hist_json:
-            history_df = pd.DataFrame(hist_json, columns=["Time", "Status", "InactiveTime"])
-            history_df["Time"] = pd.to_datetime(history_df["Time"])
-            history_df["InactiveTime"] = history_df["InactiveTime"].astype(int)
-            chart_placeholder.line_chart(history_df.set_index("Time")["InactiveTime"])
+        st.metric("무활동 시간(초)", data["time"])
+        st.caption(f"마지막 갱신: {data['updated']}")
 
-        time.sleep(2)
-    except Exception as e:
-        st.error(f"데이터 로드 실패: {e}")
-        time.sleep(5)
+    # 기록 불러오기
+    hist_res = requests.get(HISTORY_URL, timeout=5)
+    hist_json = hist_res.json()
+    if hist_json:
+        history_df = pd.DataFrame(hist_json, columns=["Time", "Status", "InactiveTime"])
+        history_df["Time"] = pd.to_datetime(history_df["Time"])
+        history_df["InactiveTime"] = history_df["InactiveTime"].astype(int)
+        chart_placeholder.line_chart(history_df.set_index("Time")["InactiveTime"])
+
+except Exception as e:
+    st.error(f"데이터 로드 실패: {e}")
+
+# --- 2초마다 새로고침 ---
+time.sleep(2)
+st.experimental_rerun()
