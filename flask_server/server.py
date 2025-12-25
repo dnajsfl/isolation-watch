@@ -47,3 +47,14 @@ def data():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+@app.route("/reset")
+def reset():
+    latest["status"] = "WAITING"
+    latest["time"] = 0
+    latest["updated"] = "-"
+
+    history.clear()
+
+    return "RESET OK", 200
+
