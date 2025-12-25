@@ -4,10 +4,11 @@ from datetime import datetime
 app = Flask(__name__)
 
 latest = {
-    "status": "WAITING",
+    "status": "WAITING",   # 대기 중으로 시작
     "time": 0,
     "updated": "-"
 }
+
 
 history = []  # 무활동 기록 저장
 
