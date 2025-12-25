@@ -21,10 +21,12 @@ placeholder_last = st.empty()
 
 while True:
     try:
-        res = requests.get(SERVER_URL, timeout=5).json()
-        latest = res["latest"]
-        history = res["history"]
-
+        res = requests.get(SERVER_URL, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        latest = data["latest"]
+        history = data["history"]
+        
         df = pd.DataFrame(history)
         if not df.empty:
             df["time"] = pd.to_datetime(df["time"])
@@ -33,9 +35,9 @@ while True:
         # 상태 표시
         with placeholder_status.container():
             if latest["status"] == "ACTIVE":
-                st.success(f"🟢 정상 상태")
+                st.success("🟢 정상 상태")
             elif latest["status"] == "INACTIVE":
-                st.error(f"🚨 무활동 감지!")
+                st.error("🚨 무활동 감지!")
             else:
                 st.warning("대기 중")
 
@@ -44,11 +46,11 @@ while True:
             if not df.empty:
                 st.line_chart(df.set_index("time")["inactive_time"])
 
-        # 마지막 갱신
+        # 마지막 갱신 → 현재 시각으로 갱신
         with placeholder_last.container():
-            st.caption(f"마지막 갱신: {latest['updated']} | 현재 무활동 시간: {latest['time']}초")
+            st.caption(f"마지막 갱신: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 현재 무활동 시간: {latest['time']}초")
 
-    except:
-        st.warning("서버 연결 실패")
-    
+    except requests.exceptions.RequestException:
+        st.warning("⚠️ 서버 연결 실패, 재시도 중...")
+
     time.sleep(1)
