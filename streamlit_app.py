@@ -49,7 +49,7 @@ while True:
 
         # 마지막 갱신 → 현재 시각으로 갱신
         with placeholder_last.container():
-            st.caption(f"마지막 갱신: {latest['updated']} | 현재 무활동 시간: {latest['time']}초")
+            st.caption(f"마지막 갱신: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 현재 무활동 시간: {latest['time']}초")
 
     except requests.exceptions.RequestException:
         st.warning("⚠️ 서버 연결 실패, 재시도 중...")
