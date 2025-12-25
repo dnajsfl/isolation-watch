@@ -6,6 +6,8 @@ st.set_page_config(page_title="고립사 예방 모니터링")
 
 SERVER_URL = "https://isolation-watch.onrender.com/data"
 
+res = requests.get(SERVER_URL, timeout=5)
+st.json(res.json())
 
 st.title("고립사 예방 실시간 모니터링")
 
