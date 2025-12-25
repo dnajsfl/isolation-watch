@@ -45,17 +45,20 @@ while True:
             st.caption(f"마지막 갱신: {latest['updated']}")
 
         # 기록 데이터프레임으로 변환
-        if history:
-            df = pd.DataFrame(history)
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
-            df = df.sort_values("timestamp")
-            df["time"] = df["time"].astype(int)
+        # 기록 데이터프레임으로 변환
+if history:
+    df = pd.DataFrame(history)
+    if not df.empty:
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        df["time"] = df["time"].astype(int)
 
-            # 선그래프
-            with graph_placeholder.container():
-                st.line_chart(df.set_index("timestamp")["time"])
-        
-    except Exception as e:
-        st.error(f"서버 연결 실패: {e}")
+        # 선그래프
+        with graph_placeholder.container():
+            st.line_chart(df.set_index("timestamp")["time"])
+else:
+    with graph_placeholder.container():
+        st.info("기록 없음")
+
     
     time.sleep(1)  # 1초마다 갱신
