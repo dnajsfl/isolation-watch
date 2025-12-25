@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import serial  # 추가: 아두이노 데이터를 읽기 위함
+import time
 
 # =========================
 # 기본 설정
@@ -11,142 +13,79 @@ st.set_page_config(
 )
 
 # =========================
-# 세션 상태 초기화 (시연용)
+# 시리얼 포트 설정 (본인의 포트 번호로 수정 필수!)
+# =========================
+@st.cache_resource
+def get_serial_connection():
+    # COM3 부분을 아두이노 IDE에서 확인한 포트 번호로 바꿔줘! (예: 'COM4', '/dev/ttyUSB0' 등)
+    return serial.Serial('COM3', 115200, timeout=1)
+
+try:
+    ser = get_serial_connection()
+except Exception as e:
+    st.error(f"아두이노 연결 실패: {e}")
+    ser = None
+
+# =========================
+# 세션 상태 초기화
 # =========================
 if "status" not in st.session_state:
-    st.session_state.status = "active"  # active / inactive
+    st.session_state.status = "active"
 
 if "last_detected" not in st.session_state:
     st.session_state.last_detected = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 if "today_count" not in st.session_state:
-    st.session_state.today_count = 2
+    st.session_state.today_count = 0
 
 # =========================
 # 제목 / 개요
 # =========================
 st.title("고립사 예방 생활 반응 모니터링")
-
-st.info(
-    "본 웹앱은 독거 가구의 생활 반응 여부를 간접적으로 확인하여 "
-    "고립 위험을 조기에 인지하는 것을 목표로 한 시연용 프로토타입이다.\n\n"
-    "직접적인 생체 정보나 영상 감시는 사용하지 않으며, "
-    "일정 시간 동안 반응이 없을 경우 주의 신호로 표시한다."
-)
-
-st.divider()
+st.info("실시간 아두이노 데이터가 연동 중입니다.")
 
 # =========================
-# 상태 요약 박스 (핵심)
+# 데이터 수신 및 로직 처리
+# =========================
+if ser:
+    if ser.in_waiting > 0:
+        line = ser.readline().decode('utf-8').strip()
+        # 아두이노에서 보낸 "D:25,S:ACTIVE" 또는 "D:100,S:INACTIVE" 읽기
+        if "S:" in line:
+            status_part = line.split(",S:")[1]
+            if status_part == "ACTIVE":
+                if st.session_state.status == "inactive": # 위험에서 정상으로 바뀔 때만 카운트
+                    st.session_state.today_count += 1
+                st.session_state.status = "active"
+                st.session_state.last_detected = datetime.now().strftime("%H:%M:%S")
+            else:
+                st.session_state.status = "inactive"
+
+# =========================
+# 상태 요약 박스
 # =========================
 st.subheader("현재 상태 요약")
 
 if st.session_state.status == "active":
-    st.success(
-        "🟢 정상 상태\n\n"
-        "- 최근 30초 이내 생활 반응 감지\n"
-        "- 현재 위험 신호 없음"
-    )
+    st.success(f"🟢 정상 상태 (최근 감지: {st.session_state.last_detected})")
 else:
-    st.error(
-        "🔴 무활동 감지\n\n"
-        "- 30초 이상 반응 없음\n"
-        "- 버저 작동 및 빨간 LED 점등\n"
-        "- 서버 및 웹앱에 경고 기록 저장"
-    )
-
-st.caption(
-    "※ 시연 기준: 30초 이상 초음파 센서 반응이 없을 경우 무활동 상태로 판단"
-)
+    st.error("🔴 무활동 감지 (10초 이상 반응 없음)")
 
 st.divider()
 
 # =========================
 # 핵심 지표
 # =========================
-st.subheader("핵심 지표")
-
 col1, col2, col3 = st.columns(3)
-
 with col1:
-    st.metric("마지막 감지 시간", st.session_state.last_detected)
-
+    st.metric("마지막 감지", st.session_state.last_detected)
 with col2:
-    st.metric("오늘 감지 횟수", st.session_state.today_count)
-
+    st.metric("오늘 활동 횟수", st.session_state.today_count)
 with col3:
-    st.metric(
-        "현재 상태",
-        "정상" if st.session_state.status == "active" else "반응 없음"
-    )
-
-st.divider()
+    st.metric("시스템", "연결됨" if ser else "연결끊김")
 
 # =========================
-# 생활 반응 기록 (시각화)
+# 실시간 업데이트를 위한 자동 리프레시 (야매 팁)
 # =========================
-st.subheader("오늘의 생활 반응 기록")
-
-data = pd.DataFrame({
-    "시간": ["09:00", "12:00", "15:00", "18:00"],
-    "감지 여부": [1, 1, 0, 0]
-})
-
-st.line_chart(data.set_index("시간"))
-
-st.divider()
-
-# =========================
-# 시연용 상태 변경 버튼
-# =========================
-st.subheader("시연용 상태 변경")
-
-col_a, col_b = st.columns(2)
-
-with col_a:
-    if st.button("생활 반응 감지 (정상)"):
-        st.session_state.status = "active"
-        st.session_state.last_detected = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        st.session_state.today_count += 1
-
-with col_b:
-    if st.button("무활동 상황 발생"):
-        st.session_state.status = "inactive"
-
-st.caption(
-    "※ 실제 환경에서는 초음파 센서(HC-SR04)의 입력에 따라 "
-    "상태가 자동으로 갱신된다."
-)
-
-st.divider()
-
-# =========================
-# 프로젝트 구조 설명
-# =========================
-st.subheader("시스템 구성")
-
-st.markdown(
-    """
-    **① 센서 모듈 (NodeMCU + HC-SR04)**  
-    - 일정 시간 동안 움직임 감지 여부 판단  
-    - 무활동 시 버저 및 LED로 1차 경고  
-
-    **② 서버 / 웹앱**  
-    - 상태 데이터 기록  
-    - 보호자·관리자가 원격으로 확인 가능  
-
-    **③ 웹 대시보드**  
-    - 현재 상태 시각화  
-    - 생활 반응 기록 그래프 제공
-    """
-)
-
-st.divider()
-
-# =========================
-# 하단 설명
-# =========================
-st.caption(
-    "본 프로젝트는 고립사 예방을 위한 기술적 가능성을 탐구하기 위한 "
-    "교육용 시연 프로토타입이다."
-)
+time.sleep(0.5)
+st.rerun() # 화면을 계속 새로고침해서 아두이노 값을 반영해
