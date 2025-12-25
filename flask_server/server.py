@@ -3,15 +3,11 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# 최신 상태
 latest = {
     "status": "WAITING",
     "time": 0,
     "updated": "-"
 }
-
-# 기록 저장
-history = []
 
 @app.route("/update")
 def update():
@@ -21,26 +17,15 @@ def update():
     if status and time_sec:
         latest["status"] = status
         latest["time"] = int(time_sec)
-        latest["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # 기록에 추가
-        history.append({
-            "timestamp": latest["updated"],
-            "status": status,
-            "time": int(time_sec)
-        })
+        latest["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 항상 갱신
         return "OK", 200
 
     return "BAD REQUEST", 400
 
+
 @app.route("/data")
 def data():
-    return jsonify({
-        "latest": latest,
-        "history": history
-    })
+    return jsonify(latest)
 
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=5000)
