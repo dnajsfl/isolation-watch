@@ -1,18 +1,17 @@
-import os
-import csv
 from flask import Flask, request, jsonify
 from datetime import datetime
 
 app = Flask(__name__)
 
-LATEST_FILE = "latest.json"
-HISTORY_FILE = "history.csv"
-
+# 최신 상태
 latest = {
     "status": "WAITING",
     "time": 0,
     "updated": "-"
 }
+
+# 모든 기록 저장 (서버 메모리)
+history = []
 
 @app.route("/update")
 def update():
@@ -20,15 +19,20 @@ def update():
     time_sec = request.args.get("time")
 
     if status and time_sec:
+        time_sec = int(time_sec)
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 최신 상태 갱신
         latest["status"] = status
-        latest["time"] = int(time_sec)
+        latest["time"] = time_sec
         latest["updated"] = now
 
-        # 기록 저장
-        with open(HISTORY_FILE, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([now, status, time_sec])
+        # 기록에 추가
+        history.append({
+            "Time": now,
+            "Status": status,
+            "InactiveTime": time_sec
+        })
 
         return "OK", 200
 
@@ -39,13 +43,10 @@ def data():
     return jsonify(latest)
 
 @app.route("/history")
-def history():
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE) as f:
-            reader = csv.reader(f)
-            return jsonify(list(reader))
-    else:
-        return jsonify([])
+def get_history():
+    return jsonify(history)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
