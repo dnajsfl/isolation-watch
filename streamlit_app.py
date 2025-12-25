@@ -1,40 +1,56 @@
 import streamlit as st
 import pandas as pd
-import time
+from datetime import datetime
 
-# 1. 본인의 구글 시트 ID (확인 완료)
-sheet_id = "1yPzX_ZG734XT_5G80TqNAxYjNdfpPQ4cKqDLPh7GkWk"
-# 2. 구글 시트 CSV 주소 (캐시 방지를 위해 뒤에 파라미터 추가 가능)
-csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+st.set_page_config(
+    page_title="고립사 예방 모니터링",
+    layout="centered"
+)
 
-st.set_page_config(page_title="고립사 예방 시스템", layout="centered")
+# =========================
+# 세션 상태
+# =========================
+if "status" not in st.session_state:
+    st.session_state.status = "active"
+    st.session_state.logs = []
 
-st.title("👨‍🦳 실시간 어르신 안전 모니터링")
+# =========================
+# URL에서 아두이노 신호 받기
+# =========================
+query_params = st.query_params
+if "status" in query_params:
+    incoming = query_params["status"]
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-placeholder = st.empty()
+    if incoming in ["active", "inactive"]:
+        st.session_state.status = incoming
+        st.session_state.logs.append({
+            "시간": now,
+            "상태": "정상" if incoming == "active" else "무활동 감지"
+        })
 
-while True:
-    try:
-        # 구글 시트에서 최신 데이터 읽기
-        # 주소 뒤에 시간을 붙여서 매번 새로고침되게 함
-        df = pd.read_csv(f"{csv_url}&t={time.time()}")
-        
-        # A2, B2 셀에서 상태와 시간 가져오기
-        status = str(df.iloc[0, 0]).strip()
-        last_update = str(df.iloc[0, 1]).strip()
-        
-        with placeholder.container():
-            if "Danger" in status:
-                st.error("🚨 위험: 현재 움직임이 감지되지 않습니다!")
-                st.metric(label="현재 상태", value="DANGER", delta="-위험 발생", delta_color="inverse")
-            else:
-                st.success("🟢 정상: 어르신이 활동 중입니다.")
-                st.metric(label="현재 상태", value="NORMAL", delta="정상 활동")
-            
-            st.info(f"마지막 신호 확인 시간: {last_update}")
-                
-    except Exception as e:
-        st.warning("데이터 동기화 중... (구글 시트 게시를 확인해주세요)")
-        
-    time.sleep(3) # 3초마다 업데이트
-    st.rerun()
+# =========================
+# 화면 표시
+# =========================
+st.title("고립사 예방 생활 반응 모니터링")
+
+if st.session_state.status == "active":
+    st.success("정상: 생활 반응이 감지되었습니다.")
+else:
+    st.error("⚠ 일정 시간 동안 생활 반응이 없습니다.")
+
+st.divider()
+
+st.subheader("상태 요약")
+st.metric("현재 상태", "정상" if st.session_state.status=="active" else "무활동")
+
+st.divider()
+
+st.subheader("감지 기록")
+if st.session_state.logs:
+    df = pd.DataFrame(st.session_state.logs)
+    st.dataframe(df, use_container_width=True)
+else:
+    st.caption("기록 없음")
+
+st.caption("아두이노 초음파 센서 기반 시연용 프로토타입")
