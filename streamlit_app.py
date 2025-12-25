@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import time
+from datetime import datetime
 import pandas as pd
 
 SERVER_URL = "https://isolation-watch.onrender.com/data"
