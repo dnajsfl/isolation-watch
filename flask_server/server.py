@@ -3,35 +3,36 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# 최신 상태
+# 상태 기록과 로그 저장
 latest = {
     "status": "WAITING",
     "time": 0,
     "updated": "-"
 }
 
-# 기록 저장
-history = []  # [{"time": datetime, "status": str, "inactive_time": int}, ...]
+history = []  # 시간 순으로 활동 기록 저장 (무활동 시간 추적용)
 
 @app.route("/update")
 def update():
     status = request.args.get("status")
     time_sec = request.args.get("time")
+    
     if status and time_sec:
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         latest["status"] = status
         latest["time"] = int(time_sec)
-        latest["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        latest["updated"] = now_str
         
-        # 기록에 추가
+        # 기록 남기기
         history.append({
-            "time": latest["updated"],
+            "timestamp": now_str,
             "status": status,
-            "inactive_time": int(time_sec)
+            "time": int(time_sec)
         })
-        # 최대 100개만 저장
+        # 기록 100개만 유지
         if len(history) > 100:
             history.pop(0)
-
+        
         return "OK", 200
 
     return "BAD REQUEST", 400
@@ -45,5 +46,4 @@ def data():
 
 if __name__ == "__main__":
     import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
