@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
-import os   # 🔴 이거 반드시 필요
+import os  # ← 이 줄이 핵심!!!!!
 
 app = Flask(__name__)
 
@@ -9,10 +9,6 @@ latest = {
     "time": 0,
     "updated": "-"
 }
-
-@app.route("/")
-def home():
-    return "SERVER OK", 200
 
 @app.route("/update")
 def update():
@@ -27,9 +23,11 @@ def update():
 
     return "BAD REQUEST", 400
 
+
 @app.route("/data")
 def data():
     return jsonify(latest)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
