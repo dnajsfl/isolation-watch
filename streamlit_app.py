@@ -10,7 +10,7 @@ SERVER_URL = "https://isolation-watch.onrender.com/data"
 # 한국 시간대 정의
 KST = timezone(timedelta(hours=9))
 
-st.title("👨‍🦳 고립사 예방 실시간 모니터링")
+st.title("👀 고립사 예방 실시간 모니터링")
 st.markdown("""
 ---
 ### 작동 원리
