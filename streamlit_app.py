@@ -4,7 +4,8 @@ import time
 
 st.set_page_config(page_title="고립사 예방 모니터링")
 
-SERVER_URL = "http://192.168.219.108:5000/data"
+SERVER_URL = "https://isolation-watch.onrender.com/data"
+
 
 st.title("고립사 예방 실시간 모니터링")
 
