@@ -1,8 +1,9 @@
 import streamlit as st
 import requests
+import pandas as pd
 import time
 from datetime import datetime
-import pandas as pd
+
 
 SERVER_URL = "https://isolation-watch.onrender.com/data"
 
@@ -25,33 +26,34 @@ while True:
         res = requests.get(SERVER_URL, timeout=5)
         res.raise_for_status()
         data = res.json()
+        
         latest = data["latest"]
         history = data["history"]
-        
-        df = pd.DataFrame(history)
-        if not df.empty:
-            df["time"] = pd.to_datetime(df["time"])
-            df["inactive_time"] = pd.to_numeric(df["inactive_time"])
 
-        # 상태 표시
-        with placeholder_status.container():
+        # 상태 출력
+        with placeholder.container():
             if latest["status"] == "ACTIVE":
                 st.success("🟢 정상 상태")
             elif latest["status"] == "INACTIVE":
-                st.error("🚨 무활동 감지!")
+                st.error("🚨 무활동 감지")
             else:
                 st.warning("대기 중")
+            
+            st.metric("현재 무활동 시간(초)", latest["time"])
+            st.caption(f"마지막 갱신: {latest['updated']}")
 
-        # 선그래프
-        with placeholder_graph.container():
-            if not df.empty:
-                st.line_chart(df.set_index("time")["inactive_time"])
+        # 기록 데이터프레임으로 변환
+        if history:
+            df = pd.DataFrame(history)
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df = df.sort_values("timestamp")
+            df["time"] = df["time"].astype(int)
 
-        # 마지막 갱신 → 현재 시각으로 갱신
-        with placeholder_last.container():
-            st.caption(f"마지막 갱신: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 현재 무활동 시간: {latest['time']}초")
-
-    except requests.exceptions.RequestException:
-        st.warning("⚠️ 서버 연결 실패, 재시도 중...")
-
-    time.sleep(1)
+            # 선그래프
+            with graph_placeholder.container():
+                st.line_chart(df.set_index("timestamp")["time"])
+        
+    except Exception as e:
+        st.error(f"서버 연결 실패: {e}")
+    
+    time.sleep(1)  # 1초마다 갱신
