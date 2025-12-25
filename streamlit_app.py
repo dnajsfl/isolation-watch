@@ -2,10 +2,13 @@ import streamlit as st
 import requests
 import pandas as pd
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone # <-- timedelta, timezone 추가
 
 st.set_page_config(page_title="고립사 예방 모니터링", layout="centered")
 SERVER_URL = "https://isolation-watch.onrender.com/data"
+
+# 한국 시간대 정의
+KST = timezone(timedelta(hours=9))
 
 st.title("👨‍🦳 고립사 예방 실시간 모니터링")
 st.markdown("""
@@ -36,16 +39,35 @@ while True:
 
             latest_status = latest.get("status", "WAITING")
             latest_time = latest.get("time", 0)
-            latest_updated = latest.get("updated", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            
+            # [수정 포인트 1] 서버에서 받은 시간을 한국 시간으로 변환
+            server_updated = latest.get("updated")
+            if server_updated:
+                # 서버 시간을 파이썬 시각 객체로 변환 (서버가 보내주는 형식이 %Y-%m-%d %H:%M:%S 라고 가정)
+                try:
+                    dt_obj = datetime.strptime(server_updated, "%Y-%m-%d %H:%M:%S")
+                    # 서버 시간이 UTC이므로 9시간을 더해줌
+                    latest_updated = (dt_obj + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    latest_updated = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                latest_updated = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
-            # 기록 DataFrame 생성
+            # [수정 포인트 2] 기록 DataFrame의 타임스탬프도 보정
             if history:
                 history_df = pd.DataFrame(history)
                 history_df["time"] = history_df["time"].astype(int)
+                
+                # 그래프 시간축도 한국 시간으로 보이게 (기존값에 9시간 더하기)
+                try:
+                    history_df["timestamp"] = pd.to_datetime(history_df["timestamp"]) + pd.Timedelta(hours=9)
+                except:
+                    pass
         else:
-            latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+            
     except Exception as e:
-        latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
         st.error(f"서버 연결 실패: {e}")
 
     # 상태 표시
