@@ -5,6 +5,9 @@ import time
 from datetime import datetime
 
 
+# --- 맨 위에 추가 ---
+history_df = pd.DataFrame(columns=["timestamp", "status", "time"])
+
 SERVER_URL = "https://isolation-watch.onrender.com/data"
 
 st.set_page_config(page_title="고립사 예방 모니터링", layout="centered")
