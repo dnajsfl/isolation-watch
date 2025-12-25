@@ -1,5 +1,10 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
+import pandas as pd
+
+# --- 맨 위에 추가 ---
+history_df = pd.DataFrame(columns=["timestamp", "status", "time"])
+
 
 app = Flask(__name__)
 
