@@ -30,22 +30,25 @@ placeholder_caption = st.empty()
 history = pd.DataFrame(columns=["timestamp", "status", "time"])
 
 while True:
-    # 서버에서 데이터 가져오기
     try:
         res = requests.get(SERVER_URL, timeout=5)
         if res.status_code == 200:
-            latest = res.json()
+            data = res.json()
+            latest = data.get("latest", {})
+            history = data.get("history", [])
+
             latest_status = latest.get("status", "WAITING")
             latest_time = latest.get("time", 0)
             latest_updated = latest.get("updated", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            # 기록 DataFrame 생성
+            if history:
+                history_df = pd.DataFrame(history)
+                history_df["time"] = history_df["time"].astype(int)
         else:
-            latest_status = "WAITING"
-            latest_time = 0
-            latest_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
-        latest_status = "WAITING"
-        latest_time = 0
-        latest_updated = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         st.error(f"서버 연결 실패: {e}")
 
     # 상태 표시
@@ -57,24 +60,16 @@ while True:
         else:
             st.warning("⏳ 대기 중")
 
-    # 무활동 시간 표시
+    # 무활동 시간
     with placeholder_metric.container():
         st.metric("무활동 시간(초)", latest_time)
 
-    # 기록 데이터 추가
-    timestamp_now = datetime.now().strftime("%H:%M:%S")
-    history = pd.concat([history, pd.DataFrame([{
-        "timestamp": timestamp_now,
-        "status": latest_status,
-        "time": latest_time
-    }])], ignore_index=True)
-
-    # 선그래프 그리기
+    # 그래프
     with placeholder_graph.container():
-        if not history.empty:
-            st.line_chart(history.set_index("timestamp")["time"])
+        if not history_df.empty:
+            st.line_chart(history_df.set_index("timestamp")["time"])
 
-    # 마지막 갱신 표시
+    # 마지막 갱신
     with placeholder_caption.container():
         st.caption(f"마지막 갱신: {latest_updated} | 현재 무활동 시간: {latest_time}초")
 
