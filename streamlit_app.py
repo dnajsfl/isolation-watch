@@ -4,14 +4,14 @@ import pandas as pd
 import time
 from datetime import datetime
 
-
-# --- 맨 위에 추가 ---
-history_df = pd.DataFrame(columns=["timestamp", "status", "time"])
-
+st.set_page_config(page_title="고립사 예방 모니터링", layout="centered")
 SERVER_URL = "https://isolation-watch.onrender.com/data"
 
-st.set_page_config(page_title="고립사 예방 모니터링", layout="centered")
+# 기록을 담을 DataFrame 초기화
+if 'history_df' not in st.session_state:
+    st.session_state.history_df = pd.DataFrame(columns=["timestamp", "status", "time"])
 
+placeholder = st.empty()
 st.title("👨‍🦳 고립사 예방 실시간 모니터링")
 st.markdown("""
 ---
@@ -29,51 +29,35 @@ placeholder_metric = st.empty()
 placeholder_graph = st.empty()
 placeholder_caption = st.empty()
 
-# 기록 저장용 데이터프레임
-history = pd.DataFrame(columns=["timestamp", "status", "time"])
 
 while True:
     try:
         res = requests.get(SERVER_URL, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            latest = data.get("latest", {})
-            history = data.get("history", [])
+        res.raise_for_status()
+        latest = res.json()
 
-            latest_status = latest.get("status", "WAITING")
-            latest_time = latest.get("time", 0)
-            latest_updated = latest.get("updated", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        # 현재 시간 기록
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_row = {"timestamp": timestamp, "status": latest.get("status", "WAITING"), "time": latest.get("time", 0)}
+        st.session_state.history_df = pd.concat([st.session_state.history_df, pd.DataFrame([new_row])], ignore_index=True)
 
-            # 기록 DataFrame 생성
-            if history:
-                history_df = pd.DataFrame(history)
-                history_df["time"] = history_df["time"].astype(int)
-        else:
-            latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        st.error(f"서버 연결 실패: {e}")
+        with placeholder.container():
+            # 상태 표시
+            if latest["status"] == "ACTIVE":
+                st.success("🟢 정상 상태")
+            elif latest["status"] == "INACTIVE":
+                st.error("🚨 무활동 감지")
+            else:
+                st.warning("대기 중")
 
-    # 상태 표시
-    with placeholder_status.container():
-        if latest_status == "ACTIVE":
-            st.success("🟢 정상 상태")
-        elif latest_status == "INACTIVE":
-            st.error("🚨 무활동 감지")
-        else:
-            st.warning("⏳ 대기 중")
+            st.metric("무활동 시간(초)", latest.get("time", 0))
+            st.caption(f"마지막 갱신: {timestamp}")
 
-    # 무활동 시간
-    with placeholder_metric.container():
-        st.metric("무활동 시간(초)", latest_time)
+            # 그래프 표시
+            st.line_chart(st.session_state.history_df.set_index("timestamp")["time"])
 
-    # 그래프
-    with placeholder_graph.container():
-        if not history_df.empty:
-            st.line_chart(history_df.set_index("timestamp")["time"])
+        time.sleep(2)
 
-    # 마지막 갱신
-    with placeholder_caption.container():
-        st.caption(f"마지막 갱신: {latest_updated} | 현재 무활동 시간: {latest_time}초")
-
-    time.sleep(1)
+    except requests.RequestException:
+        st.warning("서버 연결 실패...")
+        time.sleep(2)
