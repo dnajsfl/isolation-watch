@@ -16,6 +16,8 @@ st.markdown("""
 - 초록: 정상 활동
 - 빨강: 무활동
 """)
+placeholder = st.empty()
+graph_placeholder = st.empty()
 
 placeholder_status = st.empty()
 placeholder_graph = st.empty()
