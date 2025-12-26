@@ -2,12 +2,11 @@ import streamlit as st
 import requests
 import pandas as pd
 import time
-from datetime import datetime, timedelta, timezone # <-- timedelta, timezone 추가
+from datetime import datetime, timedelta, timezone
 
 st.set_page_config(page_title="고립사 예방 모니터링", layout="centered")
 SERVER_URL = "https://isolation-watch.onrender.com/data"
 
-# 한국 시간대 정의
 KST = timezone(timedelta(hours=9))
 
 st.title("👀 고립사 예방 실시간 모니터링")
@@ -40,7 +39,7 @@ while True:
             latest_status = latest.get("status", "WAITING")
             latest_time = latest.get("time", 0)
 
-            # 서버 업데이트 시간 KST로 변환
+            # 서버시간 KST로
             server_updated = latest.get("updated")
             if server_updated and server_updated != "-":
                 try:
@@ -51,7 +50,7 @@ while True:
             else:
                 latest_updated = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
-            # 기록 DataFrame 업데이트
+            # 기록업뎃
             if history:
                 history_df = pd.DataFrame(history)
                 history_df["time"] = history_df["time"].astype(int)
@@ -65,7 +64,7 @@ while True:
         latest_status, latest_time, latest_updated = "WAITING", 0, datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
         st.error(f"서버 연결 실패: {e}")
 
-    # 상태 표시
+    # 상태
     with placeholder_status.container():
         if latest_status == "ACTIVE":
             st.success("🟢 정상 상태")
