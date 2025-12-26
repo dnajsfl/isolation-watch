@@ -4,13 +4,13 @@ from datetime import datetime
 app = Flask(__name__)
 
 latest = {
-    "status": "WAITING",   # 대기 중으로 시작
+    "status": "WAITING",
     "time": 0,
     "updated": "-"
 }
 
 
-history = []  # 무활동 기록 저장
+history = []
 
 @app.route("/update")
 def update():
@@ -23,13 +23,13 @@ def update():
         latest["time"] = int(time_sec)
         latest["updated"] = now_str
 
-        # 기록 추가
+        
         history.append({
             "timestamp": now_str,
             "status": status,
             "time": int(time_sec)
         })
-        # 기록 길이 제한
+        
         if len(history) > 200:
             history.pop(0)
 
